@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:testonloop/model.dart';
+import 'package:testonloop/model.dart'; // Assuming the 'model.dart' file contains the necessary models.
 
 void main() {
   runApp(const MyApp());
@@ -31,9 +31,9 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-  List<String> availableVehiclesList =
-      []; // To store available vehicles as strings
+  List<String> availableVehiclesList = []; // For filtered vehicles
+  final TextEditingController minSeatsController = TextEditingController();
+  final TextEditingController maxSeatsController = TextEditingController();
 
   late VehicleModel vehicle1;
   late VehicleModel vehicle2;
@@ -45,6 +45,8 @@ class _MyHomePageState extends State<MyHomePage> {
   late Model model1;
   late Model model2;
   late Data carData;
+
+  bool isFilterApplied = false; // Flag to check if filter is applied
 
   @override
   void initState() {
@@ -66,20 +68,14 @@ class _MyHomePageState extends State<MyHomePage> {
     carData = Data(title: 'Car Data', modelList: [model1, model2]);
   }
 
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
-  }
-
-  void checkSeat(int input) {
+  void checkSeat(int minSeats, int maxSeats) {
     List<VehicleModel> availableVehicles = [];
 
     for (var model in carData.modelList!) {
       for (var subModel in model.subList!) {
         for (var host in subModel.hostList!) {
           for (var vehicle in host.vehicleList!) {
-            if (vehicle.seat! >= input) {
+            if (vehicle.seat! >= minSeats && vehicle.seat! <= maxSeats) {
               availableVehicles.add(vehicle);
             }
           }
@@ -87,11 +83,11 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     }
 
-    // Update the UI with available vehicles
     setState(() {
+      isFilterApplied = true; // Mark that filter is applied
       if (availableVehicles.isEmpty) {
         availableVehiclesList = [
-          'No vehicles available with the required seats.'
+          'No vehicles available with the required seats in the specified range.'
         ];
       } else {
         availableVehiclesList = availableVehicles
@@ -101,143 +97,215 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  // Method to retrieve all vehicle titles
+  List<String> getAllVehicles() {
+    List<String> allVehicles = [];
+    for (var model in carData.modelList!) {
+      for (var subModel in model.subList!) {
+        for (var host in subModel.hostList!) {
+          for (var vehicle in host.vehicleList!) {
+            allVehicles.add(vehicle.title ?? 'Unknown vehicle');
+          }
+        }
+      }
+    }
+    return allVehicles;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(title: Text(widget.title)),
       body: SingleChildScrollView(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            ElevatedButton(
-              onPressed: () {
-                checkSeat(5); // Check for vehicles with at least 5 seats
-              },
-              child: const Text('Check for vehicles with 5+ seats'),
-            ),
-            const SizedBox(height: 20),
-            // Display the available vehicles in a Container
-            Container(
-              padding: const EdgeInsets.all(16.0),
-              margin: const EdgeInsets.all(20.0),
-              decoration: BoxDecoration(
-                color: Colors.blue[50],
-                borderRadius: BorderRadius.circular(8.0),
-                border: Border.all(color: Colors.blue),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Available Vehicles:',
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              // Input fields for minimum and maximum seat values
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: TextField(
+                  controller: minSeatsController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Min Seats',
+                    border: OutlineInputBorder(),
                   ),
-                  const SizedBox(height: 10),
-                  // Show a message if no vehicles are available
-                  ...availableVehiclesList.map((vehicle) {
-                    return Text(
-                      vehicle,
-                    );
-                  }).toList(),
-                ],
+                ),
               ),
-            ),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: TextField(
+                  controller: maxSeatsController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Max Seats',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final minSeats = int.tryParse(minSeatsController.text) ?? 0;
+                  final maxSeats = int.tryParse(maxSeatsController.text) ?? 0;
 
-            // Display the model, submodels, hosts, and vehicles in nested containers
-            Container(
-              padding: const EdgeInsets.all(16.0),
-              margin: const EdgeInsets.all(20.0),
-              decoration: BoxDecoration(
-                color: Colors.red[50],
-                borderRadius: BorderRadius.circular(8.0),
-                border: Border.all(color: Colors.red),
+                  checkSeat(
+                      minSeats, maxSeats); // Check for vehicles in the range
+                },
+                child: const Text('Check for vehicles within seat range'),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Car Models:'),
-                  const SizedBox(height: 10),
-                  // Iterate through models
-                  ...carData.modelList!.map((model) {
-                    return Container(
-                      padding: const EdgeInsets.all(10),
-                      margin: const EdgeInsets.symmetric(vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.green[50],
-                        borderRadius: BorderRadius.circular(8.0),
-                        border: Border.all(color: Colors.green),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Model: ${model.title}'),
-                          const SizedBox(height: 8),
-                          // Iterate through subModels
-                          ...model.subList!.map((subModel) {
+              const SizedBox(height: 20),
+
+              // Section to display all vehicles if no filter is applied
+              Container(
+                padding: const EdgeInsets.all(16.0),
+                margin: const EdgeInsets.all(20.0),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8.0),
+                  border: Border.all(color: Colors.blue),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(isFilterApplied
+                        ? 'Filtered Vehicles:'
+                        : 'All Vehicles:'),
+                    const SizedBox(height: 10),
+                    // Display either filtered or all vehicles
+                    ...isFilterApplied && availableVehiclesList.isNotEmpty
+                        ? availableVehiclesList.map((vehicle) {
                             return Container(
                               padding: const EdgeInsets.all(10),
                               margin: const EdgeInsets.symmetric(vertical: 8),
                               decoration: BoxDecoration(
-                                color: Colors.yellow[50],
+                                color: Colors.green[50],
                                 borderRadius: BorderRadius.circular(8.0),
-                                border: Border.all(color: Colors.yellow),
+                                border: Border.all(color: Colors.green),
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('SubModel: ${subModel.title}'),
-                                  const SizedBox(height: 8),
-                                  // Iterate through hosts
-                                  ...subModel.hostList!.map((host) {
-                                    return Container(
-                                      padding: const EdgeInsets.all(10),
-                                      margin: const EdgeInsets.symmetric(
-                                          vertical: 8),
-                                      decoration: BoxDecoration(
-                                        color: Colors.orange[50],
-                                        borderRadius:
-                                            BorderRadius.circular(8.0),
-                                        border:
-                                            Border.all(color: Colors.orange),
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text('Host: ${host.title}'),
-                                          const SizedBox(height: 8),
-                                          // Iterate through vehicles
-                                          ...host.vehicleList!.map((vehicle) {
-                                            return Container(
-                                              padding: const EdgeInsets.all(10),
-                                              margin:
-                                                  const EdgeInsets.symmetric(
-                                                      vertical: 8),
-                                              decoration: BoxDecoration(
-                                                color: Colors.blue[50],
-                                                borderRadius:
-                                                    BorderRadius.circular(8.0),
-                                                border: Border.all(
-                                                    color: Colors.blue),
-                                              ),
-                                              child: Text(
-                                                  'Vehicle: ${vehicle.title}, Seats: ${vehicle.seat}'),
-                                            );
-                                          }).toList(),
-                                        ],
-                                      ),
-                                    );
-                                  }).toList(),
-                                ],
+                              child: Text(
+                                vehicle,
+                                style: const TextStyle(fontSize: 16),
+                              ),
+                            );
+                          }).toList()
+                        : getAllVehicles().map((vehicle) {
+                            return Container(
+                              padding: const EdgeInsets.all(10),
+                              margin: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.green[50],
+                                borderRadius: BorderRadius.circular(8.0),
+                                border: Border.all(color: Colors.green),
+                              ),
+                              child: Text(
+                                vehicle,
+                                style: const TextStyle(fontSize: 16),
                               ),
                             );
                           }).toList(),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+              Container(
+                padding: const EdgeInsets.all(16.0),
+                margin: const EdgeInsets.all(20.0),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  borderRadius: BorderRadius.circular(8.0),
+                  border: Border.all(color: Colors.red),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Car Models:'),
+                    const SizedBox(height: 10),
+                    // Iterate through models
+                    ...carData.modelList!.map((model) {
+                      return Container(
+                        padding: const EdgeInsets.all(10),
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.green[50],
+                          borderRadius: BorderRadius.circular(8.0),
+                          border: Border.all(color: Colors.green),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Model: ${model.title}'),
+                            const SizedBox(height: 8),
+                            // Iterate through subModels
+                            ...model.subList!.map((subModel) {
+                              return Container(
+                                padding: const EdgeInsets.all(10),
+                                margin: const EdgeInsets.symmetric(vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.yellow[50],
+                                  borderRadius: BorderRadius.circular(8.0),
+                                  border: Border.all(color: Colors.yellow),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('SubModel: ${subModel.title}'),
+                                    const SizedBox(height: 8),
+                                    // Iterate through hosts
+                                    ...subModel.hostList!.map((host) {
+                                      return Container(
+                                        padding: const EdgeInsets.all(10),
+                                        margin: const EdgeInsets.symmetric(
+                                            vertical: 8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orange[50],
+                                          borderRadius:
+                                              BorderRadius.circular(8.0),
+                                          border:
+                                              Border.all(color: Colors.orange),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text('Host: ${host.title}'),
+                                            const SizedBox(height: 8),
+                                            // Iterate through vehicles
+                                            ...host.vehicleList!.map((vehicle) {
+                                              return Container(
+                                                padding:
+                                                    const EdgeInsets.all(10),
+                                                margin:
+                                                    const EdgeInsets.symmetric(
+                                                        vertical: 8),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.blue[50],
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          8.0),
+                                                  border: Border.all(
+                                                      color: Colors.blue),
+                                                ),
+                                                child: Text(
+                                                    'Vehicle: ${vehicle.title}, Seats: ${vehicle.seat}'),
+                                              );
+                                            }).toList(),
+                                          ],
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
